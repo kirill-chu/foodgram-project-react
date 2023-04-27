@@ -19,6 +19,7 @@ DJANGO_APPS = [
 
 THIRD_PRT_APPS = [
     'rest_framework',
+    'rest_framework.authtoken',
     'djoser',
 ]
 
@@ -107,4 +108,8 @@ REST_FRAMEWORK = {
         # 'rest_framework_simplejwt.authentication.JWTAuthentication',
         'rest_framework.authentication.TokenAuthentication',
     ],
+}
+
+DJOSER = {
+    "LOGIN_FIELD": "email"
 }
