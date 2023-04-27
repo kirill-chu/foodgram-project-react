@@ -5,7 +5,7 @@ from djoser.serializers import UserSerializer
 User = get_user_model()
 
 
-class CustomUserCreateSerializer(UserSerializer):
+class CustomUserSerializer(UserSerializer):
     password = serializers.CharField(
         style={"input_type": "password"}, write_only=True
     )
@@ -30,26 +30,3 @@ class CustomUserCreateSerializer(UserSerializer):
 
     def get_is_subscribed(self, obj):
         return False
-
-
-class SignupSerializer(serializers.ModelSerializer):
-    """Сериалайзер для регситрации пользователя."""
-
-    def validate_username(self, value):
-        if value.lower() == 'me':
-            raise serializers.ValidationError(
-                f'Запрещено использовать {value} в качестве имени'
-            )
-        return value
-
-    class Meta:
-        model = User
-        fields = ('username', 'email', 'first_name', 'last_name', 'password')
-
-
-class UserSerializer(serializers.ModelSerializer):
-    """Сериалайзер просмотра пользователя."""
-
-    class Meta:
-        model = User
-        fields = ('email', 'id', 'username', 'first_name', 'last_name')
