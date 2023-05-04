@@ -21,10 +21,12 @@ THIRD_PRT_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'djoser',
+    'sorl.thumbnail',
 ]
 
 LOCAL_APPS = [
     'api',
+    'recipes',
     'users',
 ]
 
