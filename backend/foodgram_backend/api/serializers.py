@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from djoser.serializers import UserSerializer
 
-from recipes.models import Ingredient, MeasurementUnit
+from recipes.models import Ingredient, Tag
 
 User = get_user_model()
 
@@ -43,3 +43,11 @@ class IngredientsSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ingredient
         fields = ('id', 'name', 'measurement_unit')
+
+
+class TagSerializer(serializers.ModelSerializer):
+    """Сериалайзер для Тегов."""
+
+    class Meta:
+        model = Tag
+        fields = ('id', 'name', 'color', 'slug')

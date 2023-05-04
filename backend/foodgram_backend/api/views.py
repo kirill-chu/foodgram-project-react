@@ -1,11 +1,11 @@
 from django.contrib.auth import get_user_model
-from rest_framework import mixins, permissions, viewsets
+from rest_framework import mixins, permissions, viewsets, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from recipes.models import Ingredient
+from recipes.models import Ingredient, Tag
 from .serializers import (
-    CustomUserSerializer, IngredientsSerializer
+    CustomUserSerializer, IngredientsSerializer, TagSerializer
 )
 
 User = get_user_model()
@@ -34,5 +34,16 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
 
     queryset = Ingredient.objects.all()
     serializer_class = IngredientsSerializer
+    permission_classes = (permissions.AllowAny,)
+    pagination_class = None
+    filter_backends = (filters.SearchFilter,)
+    search_fields = ('^name',)
+
+
+class TagViewSet(viewsets.ReadOnlyModelViewSet):
+    """Вьюсет для тегов."""
+
+    queryset = Tag.objects.all()
+    serializer_class = TagSerializer
     permission_classes = (permissions.AllowAny,)
     pagination_class = None
