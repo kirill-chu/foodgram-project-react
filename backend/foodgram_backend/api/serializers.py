@@ -2,6 +2,8 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from djoser.serializers import UserSerializer
 
+from recipes.models import Ingredient, MeasurementUnit
+
 User = get_user_model()
 
 
@@ -30,3 +32,14 @@ class CustomUserSerializer(UserSerializer):
 
     def get_is_subscribed(self, obj):
         return False
+
+
+class IngredientsSerializer(serializers.ModelSerializer):
+    """Сериалайзер для Ингридиентов."""
+
+    measurement_unit = serializers.SlugRelatedField(
+        read_only=True, slug_field='unit_name')
+
+    class Meta:
+        model = Ingredient
+        fields = ('id', 'name', 'measurement_unit')

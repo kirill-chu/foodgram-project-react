@@ -3,8 +3,9 @@ from rest_framework import mixins, permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from recipes.models import Ingredient
 from .serializers import (
-    CustomUserSerializer,
+    CustomUserSerializer, IngredientsSerializer
 )
 
 User = get_user_model()
@@ -26,3 +27,12 @@ class UserViewset(viewsets.ModelViewSet):
             user = request.user
             serializer = self.get_serializer(user, many=False)
             return Response(serializer.data)
+
+
+class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
+    """Вьюсет для ингридиентов."""
+
+    queryset = Ingredient.objects.all()
+    serializer_class = IngredientsSerializer
+    permission_classes = (permissions.AllowAny,)
+    pagination_class = None
