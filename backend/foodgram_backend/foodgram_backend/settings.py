@@ -1,12 +1,13 @@
+import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = 'django-insecure-90z@_1tb@v48x#87!s=4=#@(*ek*#0m9pplbz-c20^!(s@)w-^'
 
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 DJANGO_APPS = [
     'django.contrib.admin',
@@ -22,6 +23,7 @@ THIRD_PRT_APPS = [
     'rest_framework.authtoken',
     'djoser',
     'sorl.thumbnail',
+    'corsheaders',
 ]
 
 LOCAL_APPS = [
@@ -35,6 +37,7 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PRT_APPS + LOCAL_APPS
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -96,7 +99,12 @@ USE_L10N = True
 
 USE_TZ = True
 
-STATIC_URL = '/static/'
+STATIC_URL = '/static-backend/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'static-backend')
+
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -115,3 +123,6 @@ REST_FRAMEWORK = {
 DJOSER = {
     "LOGIN_FIELD": "email"
 }
+
+CORS_ORIGIN_ALLOW_ALL = True
+CORS_URLS_REGEX = r'^/api/.*$'

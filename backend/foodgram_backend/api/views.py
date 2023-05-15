@@ -3,9 +3,10 @@ from rest_framework import mixins, permissions, viewsets, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from recipes.models import Ingredient, Tag
+from recipes.models import Ingredient, Tag, Recipe
 from .serializers import (
-    CustomUserSerializer, IngredientsSerializer, TagSerializer
+    CustomUserSerializer, IngredientSerializer, RecipeSerializer,
+    RecipeWriteSerializer, TagSerializer
 )
 
 User = get_user_model()
@@ -17,9 +18,11 @@ class CreateViewset(mixins.CreateModelMixin, viewsets.GenericViewSet):
 
 class UserViewset(viewsets.ModelViewSet):
     """Вьюсет для создания пользователя."""
+
     queryset = User.objects.all()
     serializer_class = CustomUserSerializer
     permission_classes = (permissions.AllowAny,)
+    pagination_class = None
 
     @action(detail=False, methods=['GET'])
     def me(self, request):
@@ -33,7 +36,7 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     """Вьюсет для ингридиентов."""
 
     queryset = Ingredient.objects.all()
-    serializer_class = IngredientsSerializer
+    serializer_class = IngredientSerializer
     permission_classes = (permissions.AllowAny,)
     pagination_class = None
     filter_backends = (filters.SearchFilter,)
@@ -47,3 +50,19 @@ class TagViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = TagSerializer
     permission_classes = (permissions.AllowAny,)
     pagination_class = None
+
+
+class RecipeViewSet(viewsets.ModelViewSet):
+    """Вьюсет рецептов."""
+
+    queryset = Recipe.objects.all()
+    serializer_class = RecipeSerializer
+    permission_classes = (permissions.IsAuthenticatedOrReadOnly,)
+
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user)
+
+    def get_serializer_class(self):
+        if (self.action == 'list') or (self.action == 'retrieve'):
+            return RecipeSerializer
+        return RecipeWriteSerializer

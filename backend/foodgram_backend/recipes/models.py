@@ -45,12 +45,15 @@ class Recipe(models.Model):
 
     author = models.ForeignKey(
         User, verbose_name='Автор', on_delete=models.CASCADE,
-        related_name='recipe')
+        related_name='recipes')
     name = models.CharField(verbose_name='Название', max_length=100)
-    picture = models.ImageField(
+    image = models.ImageField(
         verbose_name='Картинка', upload_to='recipes/images/')
-    description = models.TextField(verbose_name='Описание')
-    cook_time = models.PositiveSmallIntegerField(
+    ingredients = models.ManyToManyField(
+        Ingredient, through='IngredientRecipe')
+    tags = models.ManyToManyField(Tag, through='TagRecipe')
+    text = models.TextField(verbose_name='Описание')
+    cooking_time = models.PositiveSmallIntegerField(
         verbose_name='Время приготовления')
 
     class Meta:
@@ -58,36 +61,30 @@ class Recipe(models.Model):
         verbose_name_plural = 'Рецепты'
 
 
+class TagRecipe(models.Model):
+    recipe = models.ForeignKey(
+        Recipe, verbose_name='Рецепт', on_delete=models.CASCADE)
+    tag = models.ForeignKey(
+        Tag, verbose_name='Тег', on_delete=models.CASCADE)
+
+    class Meta:
+        verbose_name = 'Тег и Рецепт'
+        verbose_name_plural = 'Теги и Рцепты'
+
+
 class IngredientRecipe(models.Model):
     """Модель для связи многие ко многим. Ингридиенты и рецепты."""
 
     recipe = models.ForeignKey(
-        Recipe, verbose_name='Рецепт', on_delete=models.CASCADE,
-        related_name='ingredient')
+        Recipe, verbose_name='Рецепт', on_delete=models.CASCADE)
     ingredient = models.ForeignKey(
-        Ingredient, verbose_name='Ингридиент', on_delete=models.CASCADE,
-        related_name='recipe')
-    quanity = models.FloatField(verbose_name='Количество')
+        Ingredient, verbose_name='Ингридиент', on_delete=models.CASCADE)
+
+    amount = models.FloatField(verbose_name='Количество')
 
     class Meta:
         verbose_name = 'Ингридиент и Рецепт'
         verbose_name_plural = 'Ингридиеты и Рцепты'
-
-
-class RacipeTag(models.Model):
-    """Модель для связи многие ко многим. Рецепты и теги."""
-
-    racipe = models.ForeignKey(
-        Recipe, verbose_name='Рецепт', on_delete=models.CASCADE,
-        related_name='tag'
-    )
-    tag = models.ForeignKey(
-        Tag, verbose_name='Тег', on_delete=models.CASCADE,
-        related_name='recipe')
-
-    class Meta:
-        verbose_name = 'Рецепт и тег'
-        verbose_name_plural = 'Рецепты и теги'
 
 
 class Follow(models.Model):
@@ -126,3 +123,20 @@ class Favorite(models.Model):
             models.UniqueConstraint(
                 fields=['user', 'recipe'], name='unique_favorite')
         ]
+
+
+class ShoppingCart(models.Model):
+    """Крзина для покупок."""
+
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='shopping_cart',
+        verbose_name='Пользователь'
+    )
+    recipe = models.ForeignKey(
+        Recipe, on_delete=models.CASCADE, related_name='shopping_cart',
+        verbose_name='Рецепт'
+    )
+
+    class Meta:
+        verbose_name = 'Корзина покупок'
+        verbose_name_plural = 'Корзины покупок'
