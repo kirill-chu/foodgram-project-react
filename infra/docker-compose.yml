@@ -10,6 +10,7 @@ services:
     volumes:
        - static_volume:/app/static-backend
        - media_volume:/app/media
+       - ../data/:/app/data/
 
   frontend:
     build:

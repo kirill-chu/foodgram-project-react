@@ -33,7 +33,7 @@ class Command(BaseCommand):
             clear_table(Ingredient)
             clear_table(MeasurementUnit)
 
-        csv_file_path = '../../data/ingredients.csv'
+        csv_file_path = './data/ingredients.csv'
         with open(csv_file_path, newline='') as csvfile:
             spamreader = reader(csvfile, delimiter=',')
             list_ingredients = []

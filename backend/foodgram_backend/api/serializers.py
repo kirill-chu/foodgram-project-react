@@ -2,10 +2,14 @@ import base64
 
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
-from rest_framework import serializers
+from django.shortcuts import get_object_or_404
 from djoser.serializers import UserSerializer
+from rest_framework import serializers
+from rest_framework.validators import UniqueTogetherValidator
 
-from recipes.models import Ingredient, IngredientRecipe, Tag, TagRecipe, Recipe
+
+from recipes.models import (
+    Follow, Ingredient, IngredientRecipe, Tag, TagRecipe, Recipe)
 
 User = get_user_model()
 
@@ -43,7 +47,8 @@ class CustomUserSerializer(UserSerializer):
         return user
 
     def get_is_subscribed(self, obj):
-        return False
+        user = (self.context.get('request').user)
+        return obj.following.filter(user=user).exists()
 
 
 class TagSerializer(serializers.ModelSerializer):
@@ -102,9 +107,7 @@ class IngredientRecipeWriteSerializer(serializers.ModelSerializer):
 class RecipeSerializer(serializers.ModelSerializer):
     """Сериалейзер для рецептов."""
 
-    author = serializers.SlugRelatedField(
-        slug_field='username', read_only=True,
-        default=serializers.CurrentUserDefault())
+    author = CustomUserSerializer(read_only=True, many=False)
     ingredients = IngredientRecipeSerializer(read_only=True, many=True)
     tags = TagSerializer(many=True, read_only=True)
 
@@ -140,9 +143,6 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
                   'cooking_time', 'author')
 
     def validate(self, attrs):
-        print('validate')
-        print(attrs)
-        print(self.initial_data)
         return super().validate(attrs)
 
     def create(self, validated_data):
@@ -169,3 +169,63 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
             TagRecipe.objects.create(tag=current_tag, recipe=recipe)
 
         return recipe
+
+
+class CurrentFollowingDefault:
+    """Класс возвращает пользователя на которого подписывается другой."""
+
+    requires_context = True
+
+    def __call__(self, serializer_field):
+        context = serializer_field.context['request'].parser_context
+        return get_object_or_404(User, id=context.get('kwargs').get('id'))
+
+
+class FollowSerializer(serializers.ModelSerializer):
+    """Сериалайзер для подписок."""
+    following = serializers.SlugRelatedField(
+        slug_field='username', default=CurrentFollowingDefault(),
+        read_only=True)
+    user = serializers.SlugRelatedField(
+        slug_field='username', default=serializers.CurrentUserDefault(),
+        read_only=True)
+
+    class Meta:
+        model = Follow
+        fields = '__all__'
+        validators = [
+            UniqueTogetherValidator(
+                queryset=Follow.objects.all(),
+                fields=('user', 'following')
+            )
+        ]
+
+    def validate_following(self, value):
+        if not isinstance(value, User):
+            raise serializers.ValidationError('Имя задано неверно.')
+        if self.context.get('request').user.id == value.id:
+            raise serializers.ValidationError(
+                'Нельза оформить подписку на себя.')
+        return value
+
+
+class RecipesListSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Recipe
+        fields = ('id', 'name', 'image', 'cooking_time')
+
+
+class TempFollowSerializer(CustomUserSerializer):
+    recipes = RecipesListSerializer(read_only=True, many=True)
+    recipes_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = (
+            'email', 'id', 'username', 'first_name', 'last_name', 'password',
+            'is_subscribed', 'recipes', 'recipes_count'
+        )
+
+    def get_recipes_count(self, obj):
+        return obj.recipes.count()
