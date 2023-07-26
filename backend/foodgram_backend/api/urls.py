@@ -4,12 +4,10 @@ from .views import (
     UserViewset, IngredientViewSet, TagViewSet, RecipeViewSet)
 
 router_v1 = routers.DefaultRouter()
-# router_v1.register(r'users/(?P<id>\d+)/subscribe', FollowViewSet,
-#                   basename='subscribe')
 router_v1.register('users', UserViewset)
 router_v1.register('ingredients', IngredientViewSet)
 router_v1.register('tags', TagViewSet)
-router_v1.register('recipes', RecipeViewSet)
+router_v1.register('recipes', RecipeViewSet, basename='recipes')
 
 
 urlpatterns = [

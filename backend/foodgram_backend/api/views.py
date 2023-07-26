@@ -3,12 +3,15 @@ from django.shortcuts import get_object_or_404
 from rest_framework import mixins, permissions, viewsets, filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django_filters.rest_framework import DjangoFilterBackend
 
-from recipes.models import Ingredient, Tag, Recipe, Follow
+from recipes.models import Ingredient, Tag, Recipe, Follow, Favorite
+from .filters import RecipeFilter
+from .pagination import CustomPagination
 from .serializers import (
-    CustomUserSerializer, FollowSerializer, IngredientSerializer,
-    RecipeSerializer, RecipeWriteSerializer, TagSerializer,
-    TempFollowSerializer
+    CustomUserSerializer, FavoriteSerializer, FollowSerializer,
+    IngredientSerializer, RecipeSerializer, RecipeWriteSerializer,
+    TagSerializer, TempFollowSerializer
 )
 
 User = get_user_model()
@@ -24,7 +27,7 @@ class UserViewset(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = CustomUserSerializer
     permission_classes = (permissions.AllowAny,)
-    pagination_class = None
+    pagination_class = CustomPagination
 
     @action(detail=False, methods=['GET'])
     def me(self, request):
@@ -42,7 +45,7 @@ class UserViewset(viewsets.ModelViewSet):
             follow = get_object_or_404(Follow, user=request.user,
                                        following_id=id)
             follow.delete()
-            return Response(status=status.HTTP_200_OK)
+            return Response(status=status.HTTP_204_NO_CONTENT)
 
         elif request.method == 'POST':
             following = User.objects.get(id=id)
@@ -54,17 +57,24 @@ class UserViewset(viewsets.ModelViewSet):
                 return Response(response, status=status.HTTP_400_BAD_REQUEST)
             Follow.objects.create(user=request.user,
                                   following=following)
-            serializer = CustomUserSerializer(following, many=False)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            serializer = CustomUserSerializer(
+                following, many=False, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
     @action(detail=False, methods=['GET'])
     def subscriptions(self, request):
+        if not request.user.is_authenticated:
+            response = {'detail': 'Учетные данные не были предоставлены.'}
+            return Response(response, status=status.HTTP_401_UNAUTHORIZED)
+
         subs = User.objects.filter(following__user=request.user)
-        serializer = TempFollowSerializer(subs, many=True,
+        page = self.paginate_queryset(subs)
+        serializer = TempFollowSerializer(page, many=True,
                                           context={'request': request})
-        return Response(serializer.data)
+
+        return self.get_paginated_response(serializer.data)
 
 
 class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
@@ -90,17 +100,46 @@ class TagViewSet(viewsets.ReadOnlyModelViewSet):
 class RecipeViewSet(viewsets.ModelViewSet):
     """Вьюсет рецептов."""
 
-    queryset = Recipe.objects.all()
     serializer_class = RecipeSerializer
     permission_classes = (permissions.IsAuthenticatedOrReadOnly,)
+    filter_backends = (DjangoFilterBackend,)
+    filterset_class = RecipeFilter
+
+    def get_queryset(self):
+        queryset = Recipe.objects.all()
+        return queryset
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
     def get_serializer_class(self):
+
         if (self.action == 'list') or (self.action == 'retrieve'):
             return RecipeSerializer
         return RecipeWriteSerializer
+
+    @action(detail=False, methods=['DELETE', 'POST'],
+            url_path=r'(?P<id>\d+)/favorite',
+            serializer_class=FollowSerializer)
+    def favorite(self, request, id):
+        if request.method == 'DELETE':
+            favorite = get_object_or_404(Favorite, user=request.user,
+                                         recipe_id=id)
+            favorite.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        elif request.method == 'POST':
+            if Favorite.objects.filter(user=request.user,
+                                       recipe_id=id).exists():
+                response = {
+                    'detail': 'This recipe is already in favorites.'
+                }
+                return Response(response, status=status.HTTP_400_BAD_REQUEST)
+            favorite = Favorite.objects.create(
+                user=request.user, recipe_id=id)
+            serializer = FavoriteSerializer(
+                favorite, many=False, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 class CommonListCreateDestroyViewSet(mixins.DestroyModelMixin,

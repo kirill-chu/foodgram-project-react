@@ -39,6 +39,9 @@ class Tag(models.Model):
         verbose_name = 'Тег'
         verbose_name_plural = 'Теги'
 
+    def __str__(self):
+        return f'{self.id}: {self.name} {self.slug}'
+
 
 class Recipe(models.Model):
     """Модель рецептов."""
@@ -50,8 +53,9 @@ class Recipe(models.Model):
     image = models.ImageField(
         verbose_name='Картинка', upload_to='recipes/images/')
     ingredients = models.ManyToManyField(
-        Ingredient, through='IngredientRecipe')
-    tags = models.ManyToManyField(Tag, through='TagRecipe')
+        Ingredient, through='IngredientRecipe', related_name='ingredient')
+    tags = models.ManyToManyField(
+        Tag, through='TagRecipe', related_name='tag')
     text = models.TextField(verbose_name='Описание')
     cooking_time = models.PositiveSmallIntegerField(
         verbose_name='Время приготовления')
@@ -59,6 +63,10 @@ class Recipe(models.Model):
     class Meta:
         verbose_name = 'Рецепт'
         verbose_name_plural = 'Рецепты'
+        ordering = ['-id']
+
+    def __str__(self):
+        return f'{self.id}: {self.name}'
 
 
 class TagRecipe(models.Model):
@@ -70,6 +78,15 @@ class TagRecipe(models.Model):
     class Meta:
         verbose_name = 'Тег и Рецепт'
         verbose_name_plural = 'Теги и Рцепты'
+        constraints = [
+            models.UniqueConstraint(
+                fields=('recipe', 'tag'),
+                name='unique_recipe_tag'
+            )
+        ]
+
+    def __str__(self):
+        return f'{self.id}: {self.recipe.name} {self.tag.name}'
 
 
 class IngredientRecipe(models.Model):
@@ -85,6 +102,15 @@ class IngredientRecipe(models.Model):
     class Meta:
         verbose_name = 'Ингридиент и Рецепт'
         verbose_name_plural = 'Ингридиеты и Рцепты'
+        constraints = [
+            models.UniqueConstraint(
+                fields=('recipe', 'ingredient'),
+                name='unique_recipe_ingredient'
+            )
+        ]
+
+    def __str__(self):
+        return self.amount
 
 
 class Follow(models.Model):
@@ -102,8 +128,13 @@ class Follow(models.Model):
         verbose_name_plural = 'Подписчики'
         constraints = [
             models.UniqueConstraint(
-                fields=['user', 'following'], name='unique_follow')
+                fields=['user', 'following'],
+                name='unique_follow')
         ]
+        ordering = ['following__username']
+
+    def __str__(self):
+        return f'{self.user.username} {self.following.username}'
 
 
 class Favorite(models.Model):
@@ -121,8 +152,12 @@ class Favorite(models.Model):
         verbose_name_plural = 'Избранные рецепты'
         constraints = [
             models.UniqueConstraint(
-                fields=['user', 'recipe'], name='unique_favorite')
+                fields=['user', 'recipe'],
+                name='unique_favorite')
         ]
+
+    def __str__(self):
+        return f'{self.id}: {self.user.username} {self.recipe.name}'
 
 
 class ShoppingCart(models.Model):
@@ -140,3 +175,9 @@ class ShoppingCart(models.Model):
     class Meta:
         verbose_name = 'Корзина покупок'
         verbose_name_plural = 'Корзины покупок'
+        constraints = [
+            models.UniqueConstraint(
+                fields=('user', 'recipe'),
+                name='unique_shopping_cart'
+            )
+        ]
