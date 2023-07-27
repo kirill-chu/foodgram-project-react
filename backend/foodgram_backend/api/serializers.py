@@ -287,3 +287,17 @@ class FavoriteSerializer(serializers.ModelSerializer):
     def get_image(self, obj):
         request = self.context.get('request')
         return request.build_absolute_uri(obj.recipe.image)
+
+
+class ChangePasswordSerializer(serializers.ModelSerializer):
+    """Сеирализатор для смены пароля."""
+
+    current_password = serializers.CharField(
+        style={"input_type": "password"}, write_only=True)
+    new_password = serializers.CharField(
+        style={"input_type": "password"}, write_only=True)
+
+    class Meta:
+        model = User
+        exclude = ('id', 'password', 'email', 'username', 'first_name',
+                   'last_name')

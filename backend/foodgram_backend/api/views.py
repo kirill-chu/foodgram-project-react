@@ -9,9 +9,9 @@ from recipes.models import Ingredient, Tag, Recipe, Follow, Favorite
 from .filters import RecipeFilter
 from .pagination import CustomPagination
 from .serializers import (
-    CustomUserSerializer, FavoriteSerializer, FollowSerializer,
-    IngredientSerializer, RecipeSerializer, RecipeWriteSerializer,
-    TagSerializer, TempFollowSerializer
+    ChangePasswordSerializer, CustomUserSerializer, FavoriteSerializer,
+    FollowSerializer, IngredientSerializer, RecipeSerializer,
+    RecipeWriteSerializer, TagSerializer, TempFollowSerializer
 )
 
 User = get_user_model()
@@ -35,6 +35,23 @@ class UserViewset(viewsets.ModelViewSet):
             user = request.user
             serializer = self.get_serializer(user, many=False)
             return Response(serializer.data)
+
+    @action(detail=False, methods=['POST'],
+            serializer_class=ChangePasswordSerializer)
+    def set_password(self, request):
+        user = request.user
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        current_password = serializer.validated_data.get(
+            'current_password')
+        if not user.check_password(current_password):
+            msg = {'current_password': ['Wrong current password.']}
+            return Response(msg, status=status.HTTP_400_BAD_REQUEST)
+        user.set_password(
+            serializer.validated_data.get('new_password'))
+        user.save(update_fields=['password'])
+        msg = {'results': ['Пароль успешно изменен.']}
+        return Response(msg, status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=False, methods=['DELETE', 'POST'],
             url_path=r'(?P<id>\d+)/subscribe',
