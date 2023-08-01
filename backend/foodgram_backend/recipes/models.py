@@ -110,7 +110,7 @@ class IngredientRecipe(models.Model):
         ]
 
     def __str__(self):
-        return self.amount
+        return f'{self.recipe.name} {self.ingredient.name} {self.amount}'
 
 
 class Follow(models.Model):
@@ -181,3 +181,6 @@ class ShoppingCart(models.Model):
                 name='unique_shopping_cart'
             )
         ]
+
+    def __str__(self):
+        return f'{self.id}: {self.user}: {self.recipe}'

@@ -11,6 +11,7 @@ services:
        - static_volume:/app/static-backend
        - media_volume:/app/media
        - ../data/:/app/data/
+       - ./fonts/DejaVuLGCSans.ttf:/usr/share/fonts/DejaVuLGCSans.ttf
 
   frontend:
     build:

@@ -10,7 +10,8 @@ from rest_framework.validators import UniqueTogetherValidator
 
 
 from recipes.models import (
-    Favorite, Follow, Ingredient, IngredientRecipe, Tag, TagRecipe, Recipe)
+    Favorite, Follow, Ingredient, IngredientRecipe, Recipe, ShoppingCart, Tag,
+    TagRecipe)
 
 User = get_user_model()
 
@@ -122,6 +123,9 @@ class RecipeSerializer(serializers.ModelSerializer):
         return False
 
     def get_is_in_shopping_cart(self, obj):
+        if self.context.get('request').user.is_authenticated:
+            user = self.context.get('request').user
+            return obj.shopping_cart.filter(user=user).exists()
         return False
 
 
@@ -268,7 +272,9 @@ class GetRecipe:
 
 
 class FavoriteSerializer(serializers.ModelSerializer):
-    recipe = serializers.SlugRelatedField(
+    """Сериализатор для избранного."""
+
+    name = serializers.SlugRelatedField(
         slug_field='name', default=GetRecipe(), read_only=True)
     id = serializers.ReadOnlyField(source='recipe_id')
     image = serializers.SerializerMethodField()
@@ -276,10 +282,38 @@ class FavoriteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Favorite
-        fields = ('id', 'recipe', 'image', 'cooking_time')
+        fields = ('id', 'name', 'image', 'cooking_time')
         validators = [
             UniqueTogetherValidator(
                 queryset=Favorite.objects.all(),
+                fields=('user', 'recipe')
+            )
+        ]
+
+    def get_image(self, obj):
+        request = self.context.get('request')
+        return request.build_absolute_uri(obj.recipe.image)
+
+
+class ShoppingCartSerializer(serializers.ModelSerializer):
+    """Сериализатор для продуктовой корзины."""
+
+    # user = serializers.SlugRelatedField(
+    #    slug_field='username', default=serializers.CurrentUserDefault(),
+    #    queryset=User.objects.all(), write_only=True)
+    
+    name = serializers.SlugRelatedField(
+        slug_field='name', default=GetRecipe(), read_only=True)
+    id = serializers.ReadOnlyField(source='recipe_id')
+    image = serializers.SerializerMethodField(read_only=True)
+    cooking_time = serializers.ReadOnlyField(source='recipe.cooking_time')
+
+    class Meta:
+        model = ShoppingCart
+        fields = ('id', 'name', 'image', 'cooking_time')
+        validators = [
+            UniqueTogetherValidator(
+                queryset=ShoppingCart.objects.all(),
                 fields=('user', 'recipe')
             )
         ]

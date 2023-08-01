@@ -1,18 +1,29 @@
+import io
+
 from django.contrib.auth import get_user_model
+from django.db.models import Sum
+from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import mixins, permissions, viewsets, filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
+from reportlab.pdfgen import canvas
+from reportlab.lib.units import cm
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 
-from recipes.models import Ingredient, Tag, Recipe, Follow, Favorite
+
+from recipes.models import (
+    Ingredient, IngredientRecipe, Tag, Recipe, Follow, Favorite, ShoppingCart)
 from .filters import RecipeFilter
 from .pagination import CustomPagination
 from .serializers import (
     ChangePasswordSerializer, CustomUserSerializer, FavoriteSerializer,
     FollowSerializer, IngredientSerializer, RecipeSerializer,
-    RecipeWriteSerializer, TagSerializer, TempFollowSerializer
-)
+    RecipeWriteSerializer, ShoppingCartSerializer, TagSerializer,
+    TempFollowSerializer)
 
 User = get_user_model()
 
@@ -130,14 +141,13 @@ class RecipeViewSet(viewsets.ModelViewSet):
         serializer.save(author=self.request.user)
 
     def get_serializer_class(self):
-
         if (self.action == 'list') or (self.action == 'retrieve'):
             return RecipeSerializer
         return RecipeWriteSerializer
 
     @action(detail=False, methods=['DELETE', 'POST'],
             url_path=r'(?P<id>\d+)/favorite',
-            serializer_class=FollowSerializer)
+            serializer_class=FavoriteSerializer)
     def favorite(self, request, id):
         if request.method == 'DELETE':
             favorite = get_object_or_404(Favorite, user=request.user,
@@ -157,6 +167,62 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 favorite, many=False, context={'request': request})
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    @action(detail=False, methods=['DELETE', 'POST'],
+            url_path=r'(?P<id>\d+)/shopping_cart',
+            serializer_class=ShoppingCartSerializer)
+    def shopping_cart(self, request, id):
+        if request.method == 'DELETE':
+            recipe = get_object_or_404(ShoppingCart, user=request.user,
+                                       recipe_id=id)
+            recipe.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        elif request.method == 'POST':
+            if ShoppingCart.objects.filter(user=request.user,
+                                           recipe_id=id).exists():
+                response = {
+                    'detail': 'This recipe is alread un shopping cart.'
+                }
+                return Response(response, status=status.HTTP_400_BAD_REQUEST)
+
+            cart = ShoppingCart.objects.create(user=request.user, recipe_id=id)
+            serializer = ShoppingCartSerializer(
+                cart, many=False, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=False, methods=['GET'])
+    def download_shopping_cart(self, request):
+        recipe_ids = ShoppingCart.objects.filter(
+            user=request.user).values_list('recipe_id', flat=True)
+        qs = IngredientRecipe.objects.filter(recipe_id__in=recipe_ids)
+
+        ingredients = qs.values(
+            'ingredient__name',
+            'ingredient__measurement_unit__unit_name').annotate(
+                total=Sum('amount'))
+
+        buffer = io.BytesIO()
+        pdf_canvas = canvas.Canvas(buffer, pagesize=A4, bottomup=0)
+        text_obj = pdf_canvas.beginText()
+        text_obj.setTextOrigin(cm, cm)
+        pdfmetrics.registerFont(TTFont('DejaVuLGCSans', 'DejaVuLGCSans.ttf'))
+        text_obj.setFont('DejaVuLGCSans', 14)
+
+        for ingredient in ingredients:
+            text_obj.textLines(
+                f"{ingredient.get('ingredient__name')}"
+                f" {ingredient.get('total')}"
+                f"{ingredient.get('ingredient__measurement_unit__unit_name')}")
+
+        pdf_canvas.drawText(text_obj)
+        pdf_canvas.showPage()
+        pdf_canvas.save()
+        buffer.seek(0)
+        return FileResponse(buffer, as_attachment=True,
+                            filename='shopping_cart.pdf')
+
+        # return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
 class CommonListCreateDestroyViewSet(mixins.DestroyModelMixin,
