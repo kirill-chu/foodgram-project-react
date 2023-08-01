@@ -8,10 +8,8 @@ from djoser.serializers import UserSerializer
 from rest_framework import serializers
 from rest_framework.validators import UniqueTogetherValidator
 
-
-from recipes.models import (
-    Favorite, Follow, Ingredient, IngredientRecipe, Recipe, ShoppingCart, Tag,
-    TagRecipe)
+from recipes.models import (Favorite, Follow, Ingredient, IngredientRecipe,
+                            Recipe, ShoppingCart, Tag, TagRecipe)
 
 User = get_user_model()
 
@@ -298,10 +296,6 @@ class FavoriteSerializer(serializers.ModelSerializer):
 class ShoppingCartSerializer(serializers.ModelSerializer):
     """Сериализатор для продуктовой корзины."""
 
-    # user = serializers.SlugRelatedField(
-    #    slug_field='username', default=serializers.CurrentUserDefault(),
-    #    queryset=User.objects.all(), write_only=True)
-    
     name = serializers.SlugRelatedField(
         slug_field='name', default=GetRecipe(), read_only=True)
     id = serializers.ReadOnlyField(source='recipe_id')

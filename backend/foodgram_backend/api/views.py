@@ -4,26 +4,26 @@ from django.contrib.auth import get_user_model
 from django.db.models import Sum
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
-from rest_framework import mixins, permissions, viewsets, filters, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
-from reportlab.pdfgen import canvas
-from reportlab.lib.units import cm
 from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import cm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfgen import canvas
+from rest_framework import filters, mixins, permissions, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
+from recipes.models import (Favorite, Follow, Ingredient, IngredientRecipe,
+                            Recipe, ShoppingCart, Tag)
 
-from recipes.models import (
-    Ingredient, IngredientRecipe, Tag, Recipe, Follow, Favorite, ShoppingCart)
 from .filters import RecipeFilter
 from .pagination import CustomPagination
-from .serializers import (
-    ChangePasswordSerializer, CustomUserSerializer, FavoriteSerializer,
-    FollowSerializer, IngredientSerializer, RecipeSerializer,
-    RecipeWriteSerializer, ShoppingCartSerializer, TagSerializer,
-    TempFollowSerializer)
+from .serializers import (ChangePasswordSerializer, CustomUserSerializer,
+                          FavoriteSerializer, FollowSerializer,
+                          IngredientSerializer, RecipeSerializer,
+                          RecipeWriteSerializer, ShoppingCartSerializer,
+                          TagSerializer, TempFollowSerializer)
 
 User = get_user_model()
 
@@ -42,10 +42,9 @@ class UserViewset(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['GET'])
     def me(self, request):
-        if request.method == 'GET':
-            user = request.user
-            serializer = self.get_serializer(user, many=False)
-            return Response(serializer.data)
+        user = request.user
+        serializer = self.get_serializer(user, many=False)
+        return Response(serializer.data)
 
     @action(detail=False, methods=['POST'],
             serializer_class=ChangePasswordSerializer)
@@ -74,8 +73,7 @@ class UserViewset(viewsets.ModelViewSet):
                                        following_id=id)
             follow.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
-
-        elif request.method == 'POST':
+        if request.method == 'POST':
             following = User.objects.get(id=id)
             if Follow.objects.filter(user=request.user,
                                      following=following).exists():
@@ -134,8 +132,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     filterset_class = RecipeFilter
 
     def get_queryset(self):
-        queryset = Recipe.objects.all()
-        return queryset
+        return Recipe.objects.all()
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
@@ -154,7 +151,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
                                          recipe_id=id)
             favorite.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
-        elif request.method == 'POST':
+        if request.method == 'POST':
             if Favorite.objects.filter(user=request.user,
                                        recipe_id=id).exists():
                 response = {
@@ -177,7 +174,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
                                        recipe_id=id)
             recipe.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
-        elif request.method == 'POST':
+        if request.method == 'POST':
             if ShoppingCart.objects.filter(user=request.user,
                                            recipe_id=id).exists():
                 response = {
@@ -190,7 +187,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 cart, many=False, context={'request': request})
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(status=status.HTTP_400_BAD_REQUEST)
-    
+
     @action(detail=False, methods=['GET'])
     def download_shopping_cart(self, request):
         recipe_ids = ShoppingCart.objects.filter(

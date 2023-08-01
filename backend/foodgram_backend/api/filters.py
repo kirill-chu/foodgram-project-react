@@ -1,5 +1,4 @@
 import django_filters
-
 from recipes.models import Recipe
 
 
@@ -15,8 +14,7 @@ class RecipeFilter(django_filters.FilterSet):
         captured_value = self.request.GET.getlist('tags')
         if captured_value:
             return queryset.filter(tags__slug__in=captured_value).distinct()
-        else:
-            return queryset
+        return queryset
 
     def filter_is_favorited(self, queryset, name, value):
         if self.request.user.is_authenticated:
