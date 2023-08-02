@@ -1,6 +1,15 @@
-version: '3.3'
+version: '3.8'
 name: foodgram-sprint14
 services:
+  db:
+    image: postgres:13.0-alpine
+    environment:
+      POSTGRES_DB: "db"
+      POSTGRES_HOST_AUTH_METHOD: "trust"
+    volumes:
+      - db_volume:/var/lib/postgresql/data/
+    env_file:
+      - ./.env
 
   backend:
     build:
@@ -10,8 +19,12 @@ services:
     volumes:
        - static_volume:/app/static-backend
        - media_volume:/app/media
-       - ../data/:/app/data/
+      # - ../data/:/app/data/
        - ./fonts/DejaVuLGCSans.ttf:/usr/share/fonts/DejaVuLGCSans.ttf
+    depends_on:
+      - db
+    env_file:
+      ./.env
 
   frontend:
     build:
@@ -38,3 +51,4 @@ services:
 volumes:
   static_volume:
   media_volume:
+  db_volume:
