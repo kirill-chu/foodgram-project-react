@@ -1,9 +1,11 @@
 [![foodgram workflow](https://github.com/kirill-chu/foodgram-project-react/actions/workflows/foodgram_workflow.yml/badge.svg?branch=master)](https://github.com/kirill-chu/foodgram-project-react/actions/workflows/foodgram_workflow.yml)
 
-# api_yamdb
+# foodgram
 
 Учебный проект от яндекс.практикум. Спринт 13.
-Развернутый проект доступен по адресу: http://http://84.252.139.97
+Развернутый проект доступен по адресу: http://84.252.139.97
+Документация API доступна: http://84.252.139.97/api/docs/
+Админка доступна по адресу: http://84.252.139.97/admin
 
 ### Как запустить проект на тестовом сервере django:
 - Клонировать репозиторий и перейти в него в командной строке.
