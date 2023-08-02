@@ -12,9 +12,10 @@ services:
       - ./.env
 
   backend:
-    build:
-      context: ../backend/foodgram_backend
-      dockerfile: Dockerfile
+    image: kirillchu/foodgram_sprint13:latest
+    # build:
+    #  context: ../backend/foodgram_backend
+    #  dockerfile: Dockerfile
     restart: always
     volumes:
        - static_volume:/app/static-backend

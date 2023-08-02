@@ -57,7 +57,7 @@ jobs:
         passphrase: ${{ secrets.SERVER_PASSPHRASE }}
         script: |
           sudo docker compose stop
-          sudo docker compose rm web
+          sudo docker compose rm backend
           sudo docker pull kirillchu/foodgram_sprint13:latest
           touch .env
           echo DB_ENGINE=${{ secrets.DB_ENGINE }} > .env
