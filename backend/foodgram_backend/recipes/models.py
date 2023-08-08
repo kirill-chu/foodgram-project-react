@@ -1,4 +1,6 @@
+from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 User = get_user_model()
@@ -13,6 +15,10 @@ class MeasurementUnit(models.Model):
     class Meta:
         verbose_name = 'Единица измерения'
         verbose_name_plural = 'Единицы измерения'
+        oredering = ['id']
+
+    def __str__(self):
+        return f'{self.id}: {self.slug} {self.name}'
 
 
 class Ingredient(models.Model):
@@ -26,6 +32,10 @@ class Ingredient(models.Model):
     class Meta:
         verbose_name = 'Ингридиент'
         verbose_name_plural = 'Ингридиенты'
+        ordering = ['name']
+
+    def __str__(self):
+        return f'{self.id}: {self.name}'
 
 
 class Tag(models.Model):
@@ -38,6 +48,7 @@ class Tag(models.Model):
     class Meta:
         verbose_name = 'Тег'
         verbose_name_plural = 'Теги'
+        ordering = ['name']
 
     def __str__(self):
         return f'{self.id}: {self.name} {self.slug}'
@@ -58,7 +69,10 @@ class Recipe(models.Model):
         Tag, through='TagRecipe', related_name='tag')
     text = models.TextField(verbose_name='Описание')
     cooking_time = models.PositiveSmallIntegerField(
-        verbose_name='Время приготовления')
+        verbose_name='Время приготовления',
+        validators=[
+            MinValueValidator(settings.MIN_VALUE),
+            MaxValueValidator(settings.MAX_VALUE)])
 
     class Meta:
         verbose_name = 'Рецепт'
@@ -78,6 +92,7 @@ class TagRecipe(models.Model):
     class Meta:
         verbose_name = 'Тег и Рецепт'
         verbose_name_plural = 'Теги и Рцепты'
+        ordering = ['id']
         constraints = [
             models.UniqueConstraint(
                 fields=('recipe', 'tag'),
@@ -97,11 +112,16 @@ class IngredientRecipe(models.Model):
     ingredient = models.ForeignKey(
         Ingredient, verbose_name='Ингридиент', on_delete=models.CASCADE)
 
-    amount = models.FloatField(verbose_name='Количество')
+    amount = models.PositiveSmallIntegerField(
+        verbose_name='Количество',
+        validators=[
+            MinValueValidator(settings.MIN_VALUE),
+            MaxValueValidator(settings.MAX_VALUE)])
 
     class Meta:
         verbose_name = 'Ингридиент и Рецепт'
         verbose_name_plural = 'Ингридиеты и Рцепты'
+        orering = ['id']
         constraints = [
             models.UniqueConstraint(
                 fields=('recipe', 'ingredient'),
@@ -150,6 +170,7 @@ class Favorite(models.Model):
     class Meta:
         verbose_name = 'Избранный рецепт'
         verbose_name_plural = 'Избранные рецепты'
+        ordering = ['id']
         constraints = [
             models.UniqueConstraint(
                 fields=['user', 'recipe'],
@@ -175,6 +196,7 @@ class ShoppingCart(models.Model):
     class Meta:
         verbose_name = 'Корзина покупок'
         verbose_name_plural = 'Корзины покупок'
+        ordering = ['id']
         constraints = [
             models.UniqueConstraint(
                 fields=('user', 'recipe'),
