@@ -15,7 +15,7 @@ class MeasurementUnit(models.Model):
     class Meta:
         verbose_name = 'Единица измерения'
         verbose_name_plural = 'Единицы измерения'
-        oredering = ['id']
+        ordering = ['id']
 
     def __str__(self):
         return f'{self.id}: {self.slug} {self.name}'
@@ -121,7 +121,7 @@ class IngredientRecipe(models.Model):
     class Meta:
         verbose_name = 'Ингридиент и Рецепт'
         verbose_name_plural = 'Ингридиеты и Рцепты'
-        orering = ['id']
+        ordering = ['id']
         constraints = [
             models.UniqueConstraint(
                 fields=('recipe', 'ingredient'),

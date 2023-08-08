@@ -11,6 +11,11 @@ admin.site.register(Favorite)
 admin.site.register(ShoppingCart)
 
 
+class RecipeIngredientInline(admin.TabularInline):
+    model = Recipe.ingredients.through
+    min_num = 1
+
+
 @admin.register(Ingredient)
 class IngredientAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'meas_unit')
@@ -28,6 +33,7 @@ class RecipeAdmin(admin.ModelAdmin):
         'cooking_time', 'favorite_count')
     search_fields = ('name',)
     list_filter = ('tags', 'name', 'author')
+    inlines = (RecipeIngredientInline,)
 
     def favorite_count(self, obj):
         return obj.favorite.count()
