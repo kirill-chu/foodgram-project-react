@@ -202,7 +202,8 @@ class RecipeViewSet(ExtraActoinsViewset):
         self.extra_exctions(
             request, ShoppingCart, user=request.user, recipe_id=id)
         # if request.method == 'DELETE':
-        #     recipe = get_object_or_404(ShoppingCart, user=request.user,
+        #     recipe = get_object_or_404(ShoppingCart,
+        #                                user=request.user,
         #                                recipe_id=id)
         #     recipe.delete()
         #     return Response(status=status.HTTP_204_NO_CONTENT)
