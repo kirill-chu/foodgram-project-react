@@ -57,7 +57,6 @@ class ExtraActoinsViewset(viewsets.ModelViewSet):
         return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
-# class UserViewset(viewsets.ModelViewSet):
 class UserViewset(ExtraActoinsViewset):
     """Вьюсет для создания пользователя."""
 
@@ -95,24 +94,6 @@ class UserViewset(ExtraActoinsViewset):
     def subscribe(self, request, id):
         return self.extra_exctions(
             request, Follow, user=request.user, following_id=id)
-        # if request.method == 'DELETE':
-        #     follow = get_object_or_404(Follow, user=request.user,
-        #                                following_id=id)
-        #     follow.delete()
-        #     return Response(status=status.HTTP_204_NO_CONTENT)
-        # if request.method == 'POST':
-        #     serializer = self.get_serializer(data=request.data)
-        #     serializer.is_valid(raise_exception=True)
-
-        #     following = Follow.objects.create(user=request.user,
-        #                                       following_id=id)
-
-        #     serializer = CustomUserSerializer(
-        #         following.following, many=False,
-        # context={'request': request})
-        #     return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-        # return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
     @action(detail=False, methods=['GET'])
     def subscriptions(self, request):
@@ -148,7 +129,6 @@ class TagViewSet(viewsets.ReadOnlyModelViewSet):
     pagination_class = None
 
 
-# class RecipeViewSet(viewsets.ModelViewSet):
 class RecipeViewSet(ExtraActoinsViewset):
     """Вьюсет рецептов."""
 
@@ -181,20 +161,6 @@ class RecipeViewSet(ExtraActoinsViewset):
     def favorite(self, request, id):
         return self.extra_exctions(
             request, Favorite, user=request.user, recipe_id=id)
-        # if request.method == 'DELETE':
-        #     favorite = get_object_or_404(Favorite, user=request.user,
-        #                                  recipe_id=id)
-        #     favorite.delete()
-        #     return Response(status=status.HTTP_204_NO_CONTENT)
-        # if request.method == 'POST':
-        #     serializer = self.get_serializer(data=request.data)
-        #     serializer.is_valid(raise_exception=True)
-        #     favorite = Favorite.objects.create(
-        #         user=request.user, recipe_id=id)
-        #     serializer = FavoriteSerializer(
-        #         favorite, many=False, context={'request': request})
-        #     return Response(serializer.data, status=status.HTTP_201_CREATED)
-        # return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
     @action(detail=False, methods=['DELETE', 'POST'],
             url_path=r'(?P<id>\d+)/shopping_cart',
@@ -202,21 +168,6 @@ class RecipeViewSet(ExtraActoinsViewset):
     def shopping_cart(self, request, id):
         self.extra_exctions(
             request, ShoppingCart, user=request.user, recipe_id=id)
-        # if request.method == 'DELETE':
-        #     recipe = get_object_or_404(ShoppingCart,
-        #                                user=request.user,
-        #                                recipe_id=id)
-        #     recipe.delete()
-        #     return Response(status=status.HTTP_204_NO_CONTENT)
-        # if request.method == 'POST':
-        #     serializer = self.get_serializer(data=request.data)
-        #     serializer.is_valid(raise_exception=True)
-        #     cart = ShoppingCart.objects.create(user=request.user,
-        # recipe_id=id)
-        #     serializer = ShoppingCartSerializer(
-        #         cart, many=False, context={'request': request})
-        #     return Response(serializer.data, status=status.HTTP_201_CREATED)
-        # return Response(status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['GET'])
     def download_shopping_cart(self, request):
@@ -248,10 +199,3 @@ class RecipeViewSet(ExtraActoinsViewset):
         buffer.seek(0)
         return FileResponse(buffer, as_attachment=True,
                             filename='shopping_cart.pdf')
-
-
-class CommonListCreateDestroyViewSet(mixins.DestroyModelMixin,
-                                     mixins.RetrieveModelMixin,
-                                     mixins.CreateModelMixin,
-                                     viewsets.GenericViewSet):
-    """Общий базовый вьюсет list/create."""
