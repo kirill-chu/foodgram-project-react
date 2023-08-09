@@ -1,12 +1,11 @@
 import io
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db.models import Sum
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
-from recipes.models import (Favorite, Follow, Ingredient, IngredientRecipe,
-                            Recipe, ShoppingCart, Tag)
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm
 from reportlab.pdfbase import pdfmetrics
@@ -15,6 +14,9 @@ from reportlab.pdfgen import canvas
 from rest_framework import filters, mixins, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+
+from recipes.models import (Favorite, Follow, Ingredient, IngredientRecipe,
+                            Recipe, ShoppingCart, Tag)
 
 from .filters import RecipeFilter
 from .pagination import CustomPagination
@@ -31,7 +33,31 @@ class CreateViewset(mixins.CreateModelMixin, viewsets.GenericViewSet):
     """Базовый вьюсет только для создания."""
 
 
-class UserViewset(viewsets.ModelViewSet):
+class ExtraActoinsViewset(viewsets.ModelViewSet):
+    """Базовый вьюест для обработки дополнительных эндпоинтов."""
+
+    def extra_exctions(self, request, model, **kwargs):
+        print(request.method)
+        if request.method == 'DELETE':
+            item = get_object_or_404(model, **kwargs)
+            item.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        if request.method == 'POST':
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+
+            item = model.objects.create(**kwargs)
+            print(item)
+            print(serializer)
+            serializer = self.get_serializer(
+                item, many=False, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+# class UserViewset(viewsets.ModelViewSet):
+class UserViewset(ExtraActoinsViewset):
     """Вьюсет для создания пользователя."""
 
     queryset = User.objects.all()
@@ -66,27 +92,26 @@ class UserViewset(viewsets.ModelViewSet):
             url_path=r'(?P<id>\d+)/subscribe',
             serializer_class=FollowSerializer)
     def subscribe(self, request, id):
-        if request.method == 'DELETE':
-            following = User.objects.get(id=id)
-            follow = get_object_or_404(Follow, user=request.user,
-                                       following_id=id)
-            follow.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        if request.method == 'POST':
-            following = User.objects.get(id=id)
-            if Follow.objects.filter(user=request.user,
-                                     following=following).exists():
-                response = {
-                    'detail': 'You have already subscribed.'
-                }
-                return Response(response, status=status.HTTP_400_BAD_REQUEST)
-            Follow.objects.create(user=request.user,
-                                  following=following)
-            serializer = CustomUserSerializer(
-                following, many=False, context={'request': request})
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return self.extra_exctions(
+            request, Follow, user=request.user, following_id=id)
+        # if request.method == 'DELETE':
+        #     follow = get_object_or_404(Follow, user=request.user,
+        #                                following_id=id)
+        #     follow.delete()
+        #     return Response(status=status.HTTP_204_NO_CONTENT)
+        # if request.method == 'POST':
+        #     serializer = self.get_serializer(data=request.data)
+        #     serializer.is_valid(raise_exception=True)
 
-        return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
+        #     following = Follow.objects.create(user=request.user,
+        #                                       following_id=id)
+
+        #     serializer = CustomUserSerializer(
+        #         following.following, many=False,
+        # context={'request': request})
+        #     return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        # return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
     @action(detail=False, methods=['GET'])
     def subscriptions(self, request):
@@ -122,7 +147,8 @@ class TagViewSet(viewsets.ReadOnlyModelViewSet):
     pagination_class = None
 
 
-class RecipeViewSet(viewsets.ModelViewSet):
+# class RecipeViewSet(viewsets.ModelViewSet):
+class RecipeViewSet(ExtraActoinsViewset):
     """Вьюсет рецептов."""
 
     serializer_class = RecipeSerializer
@@ -139,53 +165,56 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if (self.action == 'list') or (self.action == 'retrieve'):
             return RecipeSerializer
+
+        if self.action == 'favorite':
+            return FavoriteSerializer
+
+        if self.action == 'shopping_cart':
+            return ShoppingCartSerializer
+
         return RecipeWriteSerializer
 
     @action(detail=False, methods=['DELETE', 'POST'],
             url_path=r'(?P<id>\d+)/favorite',
             serializer_class=FavoriteSerializer)
     def favorite(self, request, id):
-        if request.method == 'DELETE':
-            favorite = get_object_or_404(Favorite, user=request.user,
-                                         recipe_id=id)
-            favorite.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        if request.method == 'POST':
-            if Favorite.objects.filter(user=request.user,
-                                       recipe_id=id).exists():
-                response = {
-                    'detail': 'This recipe is already in favorites.'
-                }
-                return Response(response, status=status.HTTP_400_BAD_REQUEST)
-            favorite = Favorite.objects.create(
-                user=request.user, recipe_id=id)
-            serializer = FavoriteSerializer(
-                favorite, many=False, context={'request': request})
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
+        return self.extra_exctions(
+            request, Favorite, user=request.user, recipe_id=id)
+        # if request.method == 'DELETE':
+        #     favorite = get_object_or_404(Favorite, user=request.user,
+        #                                  recipe_id=id)
+        #     favorite.delete()
+        #     return Response(status=status.HTTP_204_NO_CONTENT)
+        # if request.method == 'POST':
+        #     serializer = self.get_serializer(data=request.data)
+        #     serializer.is_valid(raise_exception=True)
+        #     favorite = Favorite.objects.create(
+        #         user=request.user, recipe_id=id)
+        #     serializer = FavoriteSerializer(
+        #         favorite, many=False, context={'request': request})
+        #     return Response(serializer.data, status=status.HTTP_201_CREATED)
+        # return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
     @action(detail=False, methods=['DELETE', 'POST'],
             url_path=r'(?P<id>\d+)/shopping_cart',
             serializer_class=ShoppingCartSerializer)
     def shopping_cart(self, request, id):
-        if request.method == 'DELETE':
-            recipe = get_object_or_404(ShoppingCart, user=request.user,
-                                       recipe_id=id)
-            recipe.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        if request.method == 'POST':
-            if ShoppingCart.objects.filter(user=request.user,
-                                           recipe_id=id).exists():
-                response = {
-                    'detail': 'This recipe is alread un shopping cart.'
-                }
-                return Response(response, status=status.HTTP_400_BAD_REQUEST)
-
-            cart = ShoppingCart.objects.create(user=request.user, recipe_id=id)
-            serializer = ShoppingCartSerializer(
-                cart, many=False, context={'request': request})
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(status=status.HTTP_400_BAD_REQUEST)
+        self.extra_exctions(
+            request, ShoppingCart, user=request.user, recipe_id=id)
+        # if request.method == 'DELETE':
+        #     recipe = get_object_or_404(ShoppingCart, user=request.user,
+        #                                recipe_id=id)
+        #     recipe.delete()
+        #     return Response(status=status.HTTP_204_NO_CONTENT)
+        # if request.method == 'POST':
+        #     serializer = self.get_serializer(data=request.data)
+        #     serializer.is_valid(raise_exception=True)
+        #     cart = ShoppingCart.objects.create(user=request.user,
+        # recipe_id=id)
+        #     serializer = ShoppingCartSerializer(
+        #         cart, many=False, context={'request': request})
+        #     return Response(serializer.data, status=status.HTTP_201_CREATED)
+        # return Response(status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['GET'])
     def download_shopping_cart(self, request):
@@ -203,13 +232,13 @@ class RecipeViewSet(viewsets.ModelViewSet):
         text_obj = pdf_canvas.beginText()
         text_obj.setTextOrigin(cm, cm)
         pdfmetrics.registerFont(TTFont('DejaVuLGCSans', 'DejaVuLGCSans.ttf'))
-        text_obj.setFont('DejaVuLGCSans', 14)
+        text_obj.setFont('DejaVuLGCSans', settings.FONT_SIZE)
 
         for ingredient in ingredients:
             text_obj.textLines(
-                f"{ingredient.get('ingredient__name')}"
-                f" {ingredient.get('total')}"
-                f"{ingredient.get('ingredient__measurement_unit__unit_name')}")
+                f'{ingredient.get("ingredient__name")}'
+                f' {ingredient.get("total")}'
+                f'{ingredient.get("ingredient__measurement_unit__unit_name")}')
 
         pdf_canvas.drawText(text_obj)
         pdf_canvas.showPage()
@@ -217,8 +246,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
         buffer.seek(0)
         return FileResponse(buffer, as_attachment=True,
                             filename='shopping_cart.pdf')
-
-        # return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
 class CommonListCreateDestroyViewSet(mixins.DestroyModelMixin,

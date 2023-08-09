@@ -1,14 +1,15 @@
 import base64
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
-from django.db.utils import IntegrityError
 from django.shortcuts import get_object_or_404
 from djoser.serializers import UserSerializer
-from recipes.models import (Favorite, Follow, Ingredient, IngredientRecipe,
-                            Recipe, ShoppingCart, Tag, TagRecipe)
 from rest_framework import serializers
 from rest_framework.validators import UniqueTogetherValidator
+
+from recipes.models import (Favorite, Follow, Ingredient, IngredientRecipe,
+                            Recipe, ShoppingCart, Tag, TagRecipe)
 
 User = get_user_model()
 
@@ -24,7 +25,7 @@ class Base64ImageField(serializers.ImageField):
 
 class CustomUserSerializer(UserSerializer):
     password = serializers.CharField(
-        style={"input_type": "password"}, write_only=True
+        style={'input_type': 'password'}, write_only=True
     )
     is_subscribed = serializers.SerializerMethodField()
 
@@ -78,7 +79,7 @@ class IngredientRecipeSerializer(serializers.ModelSerializer):
         source='ingredient.measurement_unit.unit_name')
     id = serializers.IntegerField(source='ingredient.id')
     name = serializers.ReadOnlyField(source='ingredient.name')
-    amount = serializers.FloatField()
+    amount = serializers.IntegerField()
 
     class Meta:
         model = IngredientRecipe
@@ -89,7 +90,9 @@ class IngredientRecipeWriteSerializer(serializers.ModelSerializer):
     """Сериалайзер для Ингридиентов."""
 
     id = serializers.IntegerField(source='ingredient.id')
-    amount = serializers.FloatField()
+    amount = serializers.IntegerField(
+        min_value=settings.MIN_VALUE,
+        max_value=settings.MAX_VALUE)
 
     class Meta:
         model = IngredientRecipe
@@ -97,7 +100,7 @@ class IngredientRecipeWriteSerializer(serializers.ModelSerializer):
 
 
 class RecipeSerializer(serializers.ModelSerializer):
-    """Сериалейзер для рецептов."""
+    """Сериалейзер для чтения рецептов."""
 
     author = CustomUserSerializer(read_only=True, many=False)
     ingredients = IngredientRecipeSerializer(
@@ -139,6 +142,9 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
     image = Base64ImageField(required=True, allow_null=False)
     tags = serializers.PrimaryKeyRelatedField(
         many=True, queryset=Tag.objects.all())
+    cooking_time = serializers.IntegerField(
+        min_value=settings.MIN_VALUE,
+        max_value=settings.MAX_VALUE)
 
     class Meta:
         model = Recipe
@@ -148,27 +154,34 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         return super().validate(attrs)
 
+    def add_tags(self, tags, instance):
+        """Метод добавляет связывает теги и рецепт."""
+
+        tags_list = []
+        for tag in tags:
+            tags_list.append(TagRecipe(tag=tag, recipe=instance))
+        TagRecipe.objects.bulk_create(tags_list)
+
+    def add_ingredients(self, ingredients, instance):
+        """Метод связвает ингредиенты и рецепт."""
+
+        ingredients_list = []
+        for ingredient in ingredients:
+            ingredients_list.append(IngredientRecipe(
+                ingredient_id=ingredient.get('ingredient').get('id'),
+                recipe=instance, amount=ingredient.get('amount')))
+        IngredientRecipe.objects.bulk_create(ingredients_list)
+
     def create(self, validated_data):
         """Метод создания рецепта."""
 
         ingredients = validated_data.pop('ingredientrecipe_set')
-
         tags = validated_data.pop('tags')
 
         recipe = Recipe.objects.create(**validated_data)
 
-        for ingredient in ingredients:
-            current_ingredient = Ingredient.objects.get(
-                id=ingredient.get('ingredient').get('id'))
-
-            IngredientRecipe.objects.create(
-                ingredient=current_ingredient,
-                amount=ingredient['amount'], recipe=recipe)
-
-        for tag in tags:
-            current_tag = Tag.objects.get(id=tag.id)
-            TagRecipe.objects.create(tag=current_tag, recipe=recipe)
-
+        self.add_ingredients(ingredients, recipe)
+        self.add_tags(tags, recipe)
         return recipe
 
     def update(self, instance, validated_data):
@@ -182,20 +195,11 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         instance.save(update_fields=validated_data)
 
         TagRecipe.objects.filter(recipe=instance).delete()
-        for tag in tags:
-            TagRecipe.objects.create(tag=tag, recipe=instance)
+        self.add_tags(tags, instance)
 
         IngredientRecipe.objects.filter(recipe=instance.id).delete()
-        for ingredient in ingredients:
-            try:
-                IngredientRecipe.objects.create(
-                    ingredient_id=ingredient.get('ingredient').get('id'),
-                    recipe=instance, amount=ingredient.get('amount'))
-            except IntegrityError:
-                msg = (
-                    {'detail': 'Ингредиент c id: '
-                     f'{ingredient.get("ingredient").get("id")} не найден!'})
-                raise serializers.ValidationError(msg)
+        self.add_ingredients(ingredients, instance)
+
         return instance
 
 
@@ -232,10 +236,15 @@ class FollowSerializer(serializers.ModelSerializer):
     def validate_following(self, value):
         if not isinstance(value, User):
             raise serializers.ValidationError('Имя задано неверно.')
+
         if self.context.get('request').user.id == value.id:
             raise serializers.ValidationError(
                 'Нельза оформить подписку на себя.')
+
         return value
+
+    def validate_user(self, value):
+        print(value)
 
 
 class RecipesListSerializer(serializers.ModelSerializer):
@@ -268,6 +277,16 @@ class GetRecipe:
         return get_object_or_404(Recipe, id=context.get('kwargs').get('id'))
 
 
+class CurrentRecipeDefault:
+    """Класс возвращает рецепт который добавляется в избранное."""
+
+    requires_context = True
+
+    def __call__(self, serializer_field):
+        context = serializer_field.context['request'].parser_context
+        return get_object_or_404(Recipe, id=context.get('kwargs').get('id'))
+
+
 class FavoriteSerializer(serializers.ModelSerializer):
     """Сериализатор для избранного."""
 
@@ -276,10 +295,12 @@ class FavoriteSerializer(serializers.ModelSerializer):
     id = serializers.ReadOnlyField(source='recipe_id')
     image = serializers.SerializerMethodField()
     cooking_time = serializers.ReadOnlyField(source='recipe.cooking_time')
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    recipe = serializers.HiddenField(default=CurrentRecipeDefault())
 
     class Meta:
         model = Favorite
-        fields = ('id', 'name', 'image', 'cooking_time')
+        fields = ('id', 'name', 'image', 'cooking_time', 'user', 'recipe')
         validators = [
             UniqueTogetherValidator(
                 queryset=Favorite.objects.all(),
@@ -300,10 +321,12 @@ class ShoppingCartSerializer(serializers.ModelSerializer):
     id = serializers.ReadOnlyField(source='recipe_id')
     image = serializers.SerializerMethodField(read_only=True)
     cooking_time = serializers.ReadOnlyField(source='recipe.cooking_time')
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    recipe = serializers.HiddenField(default=CurrentRecipeDefault())
 
     class Meta:
         model = ShoppingCart
-        fields = ('id', 'name', 'image', 'cooking_time')
+        fields = ('id', 'name', 'image', 'cooking_time', 'user', 'recipe')
         validators = [
             UniqueTogetherValidator(
                 queryset=ShoppingCart.objects.all(),
@@ -320,9 +343,9 @@ class ChangePasswordSerializer(serializers.ModelSerializer):
     """Сеирализатор для смены пароля."""
 
     current_password = serializers.CharField(
-        style={"input_type": "password"}, write_only=True)
+        style={'input_type': 'password'}, write_only=True)
     new_password = serializers.CharField(
-        style={"input_type": "password"}, write_only=True)
+        style={'input_type': 'password'}, write_only=True)
 
     class Meta:
         model = User
