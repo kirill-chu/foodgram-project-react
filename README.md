@@ -48,14 +48,14 @@ python3 manage.py runserver 0:8000
 - Перейдите в дирректоию `infra` в ней располагается `docker-compose.yaml` файл.
 - В дирректории выполните команду
 ```
-docker-compose up -d
+sudo docker-compose up -d
 ```
 Проект запущен и готов, но для полноценной работы выполните миграции и предварительные настройки. В зависимости от версий установленных пакетов используйте команду `docker compose` или `docker-compose`:
 ```
-docker-compose exec backend python manage.py migrate
-docker-compose exec backend python manage.py createsuperuser
-docker-compose exec backend python manage.py collectstatic --no-input
-docker-compose exec backend python manage.py fillingredients
+sudo docker-compose exec backend python manage.py migrate
+sudo docker-compose exec backend python manage.py createsuperuser
+sudo docker-compose exec backend python manage.py collectstatic --no-input
+sudo docker-compose exec backend python manage.py fillingredients
 ```
 - Для администрирования пройдите по ссылке `http://localhost/admin/` и воспользуйтесь ранее созданной учетной записью супер-пользователя.
 
@@ -74,13 +74,24 @@ DB_PORT=5432 # порт для подключения к БД
 
 Для остановки сервисов и удаления контейнеров выполните команду:
 ```
-docker-compose down -v
+sudo docker-compose down -v
 ```
 
 ```
 Для пересборки проекта используйте команду:
 ```
-docker-compose -up -d --build
+sudo docker-compose -up -d --build
+```
+### Прочие настройки файла `.env`
+```
+SECRET_KEY = "" # укажите SECRET_KEY Django проекта
+DEBUG = "false" # Включение debug режима
+ALLOWED_HOSTS = "host1 host2" # Перечислите через пробел хосты или их IP адреса
+```
+Для генерации `SECRET_KEY` воспользуйтесь командой функцией `get_random_secret_key(), например:
+
+```
+sudo docker-compose exec backend python3 -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'
 ```
 
 ### Deploy при помощи git actions
